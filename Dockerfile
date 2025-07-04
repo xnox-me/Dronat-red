@@ -26,6 +26,10 @@ RUN pip install meson
 # Install n8n
 RUN npm install -g n8n
 
+# Install Lean
+RUN curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y
+ENV PATH="/home/devuser/.elan/bin:${PATH}"
+
 # Install Neovim
 RUN curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux64.tar.gz &&     tar -xzf nvim-linux64.tar.gz &&     mv nvim-linux64 /home/devuser/.local/share/ &&     rm nvim-linux64.tar.gz
 ENV PATH="/home/devuser/.local/share/nvim-linux64/bin:${PATH}"

@@ -10,6 +10,7 @@ This repository contains a Dockerfile to build a complete, portable development 
 *   Node.js & npm
 *   GitHub CLI (`gh`)
 *   n8n
+*   Lean
 *   Tmux
 *   Essential build tools
 
