@@ -2,7 +2,23 @@
 
 This repository contains my Neovim configuration, along with setup instructions for a complete development environment including Anaconda and Meson.
 
-## Installation
+## Docker
+
+This repository contains a Dockerfile to build a complete, portable development environment.
+
+### Build the Image
+
+```bash
+docker build -t nvimmer_dronatxxx .
+```
+
+### Run the Container
+
+```bash
+docker run -it nvimmer_dronatxxx
+```
+
+## Manual Installation
 
 This guide assumes you are on a Debian/Ubuntu-based Linux distribution.
 
