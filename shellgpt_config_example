@@ -1,0 +1,48 @@
+# ShellGPT Configuration Example
+# Copy this to ~/.config/shell_gpt/.sgptrc to customize ShellGPT behavior
+
+# Default model to use (if you have API access)
+# DEFAULT_MODEL=gpt-3.5-turbo
+
+# Default role for conversations
+# DEFAULT_ROLE=default
+
+# Enable shell integration
+# SHELL_INTEGRATION=true
+
+# Enable code highlighting
+# CODE_THEME=default
+
+# Cache directory
+# CACHE_PATH=~/.cache/shell_gpt
+
+# Request timeout in seconds
+# REQUEST_TIMEOUT=60
+
+# Show spinner during requests
+# SHOW_SPINNER=true
+
+# Usage Examples:
+# 
+# Basic usage (works without API key):
+# sgpt "explain docker containers"
+# 
+# Code generation:
+# sgpt --code "python function to parse JSON"
+# 
+# Shell commands:
+# sgpt --shell "find large files in current directory"
+# 
+# Execute shell commands directly:
+# sgpt --shell "list directory contents" --execute
+# 
+# Interactive mode:
+# sgpt --repl
+# 
+# Create custom roles:
+# sgpt --create-role "python_expert" "You are a Python expert. Help with Python code and best practices."
+# sgpt --role python_expert "how to handle exceptions in Python"
+
+# Note: For full functionality, you need to set up an API key.
+# Run: sgpt --install-integration
+# Or set environment variable: export OPENAI_API_KEY="your-api-key"
