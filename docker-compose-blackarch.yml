@@ -1,0 +1,133 @@
+version: '3.8'
+
+services:
+  dronat-blackarch:
+    build:
+      context: .
+      dockerfile: Dockerfile.blackarch
+    image: dronat-blackarch:latest
+    container_name: dronat-blackarch-dev
+    hostname: blackarch-pentest
+    
+    # Port mappings for security tools and services
+    ports:
+      - "8888:8888"   # JupyterLab (ML/AI Security Research)
+      - "5678:5678"   # n8n Workflow Automation
+      - "8080:8080"   # Shellngn Pro Web Interface
+      - "6006:6006"   # TensorBoard (ML Model Visualization)
+      - "7860:7860"   # Gradio (ML Model Interfaces)
+      - "8501:8501"   # Streamlit (Security Dashboards)
+      - "5000:5000"   # MLflow (ML Experiment Tracking)
+      - "3000:3000"   # Additional web service port
+      - "4444:4444"   # Metasploit handler port
+      - "8000:8000"   # HTTP server port
+    
+    # Volume mounts for persistent data
+    volumes:
+      - ./workspace:/home/devuser/workspace
+      - ./reports:/home/devuser/reports
+      - ./wordlists:/home/devuser/custom-wordlists
+      - ./exploits:/home/devuser/custom-exploits
+      - ./configs:/home/devuser/configs
+      - shellngn-data:/home/devuser/shellngn-data
+      
+    # Environment variables
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - TERM=xterm-256color
+      - LANG=en_US.UTF-8
+      - LC_ALL=en_US.UTF-8
+      - PYTHONPATH=/home/devuser/anaconda3/lib/python3.11/site-packages
+      - PATH=/home/devuser/anaconda3/bin:/home/devuser/.local/share/nvim-linux64/bin:/home/devuser/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    
+    # Network configuration for penetration testing
+    network_mode: host  # Required for some network security tools
+    
+    # Security and capabilities
+    privileged: true    # Required for network tools like nmap, aircrack-ng
+    cap_add:
+      - NET_ADMIN      # Network administration
+      - NET_RAW        # Raw socket access
+      - SYS_ADMIN      # System administration
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4.0'
+        reservations:
+          memory: 4G
+          cpus: '2.0'
+    
+    # Security settings
+    security_opt:
+      - seccomp:unconfined  # Required for some security tools
+    
+    # Interactive mode
+    stdin_open: true
+    tty: true
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Optional: Separate service for Shellngn Pro
+  shellngn-pro:
+    image: shellngn/pro:latest
+    container_name: shellngn-standalone
+    ports:
+      - "8081:8080"  # Alternative port to avoid conflicts
+    volumes:
+      - shellngn-data:/data
+    restart: unless-stopped
+    profiles:
+      - shellngn  # Use with: docker-compose --profile shellngn up
+
+  # Optional: Database for security data storage
+  postgres-security:
+    image: postgres:15-alpine
+    container_name: postgres-security-db
+    environment:
+      POSTGRES_DB: security_research
+      POSTGRES_USER: secresearcher
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme123}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    profiles:
+      - database  # Use with: docker-compose --profile database up
+
+  # Optional: Redis for caching and session storage
+  redis-security:
+    image: redis:7-alpine
+    container_name: redis-security-cache
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    profiles:
+      - cache  # Use with: docker-compose --profile cache up
+
+volumes:
+  shellngn-data:
+    driver: local
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  default:
+    name: dronat-blackarch-network
+    driver: bridge

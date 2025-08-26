@@ -1,0 +1,185 @@
+# Dockerfile for Dronat BlackArch - Penetration Testing Development Environment
+FROM blackarchlinux/blackarch:latest
+
+# Set non-interactive frontend for package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update package database and keyring
+RUN pacman -Syy --noconfirm && \
+    pacman -S --noconfirm archlinux-keyring blackarch-keyring && \
+    pacman -Syu --noconfirm
+
+# Install system dependencies and build tools
+RUN pacman -S --noconfirm \
+    base-devel \
+    curl \
+    wget \
+    unzip \
+    git \
+    sudo \
+    ripgrep \
+    fd \
+    python \
+    python-pip \
+    python-virtualenv \
+    pkg-config \
+    hdf5 \
+    openssl \
+    libffi \
+    libjpeg-turbo \
+    libpng \
+    freetype2 \
+    libxml2 \
+    libxslt \
+    openblas \
+    lapack \
+    tmux \
+    vim \
+    nano \
+    htop \
+    tree \
+    which \
+    man-db \
+    man-pages
+
+# Install BlackArch specific penetration testing tools
+# Install core tools first
+RUN pacman -S --noconfirm \
+    nmap \
+    masscan \
+    dirb \
+    nikto \
+    sqlmap \
+    wireshark-qt \
+    aircrack-ng \
+    hashcat \
+    john \
+    hydra \
+    gnu-netcat \
+    socat \
+    tcpdump \
+    ettercap \
+    beef
+
+# Install additional tools that may not be available in all repos
+RUN pacman -S --noconfirm gobuster || echo "gobuster not available"
+RUN pacman -S --noconfirm burpsuite || echo "burpsuite not available" 
+RUN pacman -S --noconfirm metasploit || echo "metasploit not available"
+RUN pacman -S --noconfirm maltego || echo "maltego not available"
+RUN pacman -S --noconfirm recon-ng || echo "recon-ng not available"
+RUN pacman -S --noconfirm theharvester || echo "theharvester not available"
+RUN pacman -S --noconfirm exploitdb || echo "exploitdb not available"
+
+# Install tools via alternative methods if package manager fails
+RUN curl -L https://github.com/OJ/gobuster/releases/download/v3.6.0/gobuster_Linux_x86_64.tar.gz -o /tmp/gobuster.tar.gz || true && \
+    tar -xzf /tmp/gobuster.tar.gz -C /tmp/ || true && \
+    mv /tmp/gobuster /usr/local/bin/ || true && \
+    rm -f /tmp/gobuster.tar.gz || true
+
+# Install Node.js 22 LTS
+RUN curl -fsSL https://rpm.nodesource.com/setup_22.x | bash - || \
+    (pacman -S --noconfirm nodejs npm)
+
+# Install GitHub CLI
+RUN pacman -S --noconfirm github-cli
+
+# Create a non-root user with sudo privileges
+RUN useradd -m -s /bin/bash -G wheel devuser && \
+    echo "devuser:devuser" | chpasswd && \
+    echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+USER devuser
+WORKDIR /home/devuser
+
+# Install Anaconda 2024.10
+RUN curl -O https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh && \
+    bash Anaconda3-2024.10-1-Linux-x86_64.sh -b -p /home/devuser/anaconda3 && \
+    rm Anaconda3-2024.10-1-Linux-x86_64.sh
+
+# Set up Anaconda environment
+ENV PATH="/home/devuser/anaconda3/bin:${PATH}"
+ENV CONDA_PREFIX="/home/devuser/anaconda3"
+
+# Initialize conda and update base environment
+RUN /home/devuser/anaconda3/bin/conda init bash && \
+    /home/devuser/anaconda3/bin/conda update -n base -c defaults conda -y
+
+# Copy installation scripts
+COPY requirements-blackarch.txt /tmp/requirements.txt
+COPY install_packages_blackarch.py /tmp/install_packages.py
+
+# Install Python packages with robust error handling
+RUN /home/devuser/anaconda3/bin/python /tmp/install_packages.py && \
+    rm /tmp/requirements.txt /tmp/install_packages.py
+
+# Install security-focused Python packages
+RUN /home/devuser/anaconda3/bin/pip install --no-cache-dir \
+    scapy \
+    requests \
+    beautifulsoup4 \
+    selenium \
+    paramiko \
+    pycrypto \
+    cryptography \
+    impacket \
+    python-nmap \
+    shodan \
+    censys \
+    dnspython \
+    netaddr \
+    ipaddress \
+    pwntools \
+    ropper \
+    capstone \
+    keystone-engine \
+    unicorn \
+    angr \
+    z3-solver \
+    yara-python
+
+# Install n8n for workflow automation
+RUN npm config set prefix '/home/devuser/.npm-global' && \
+    echo 'export PATH="/home/devuser/.npm-global/bin:$PATH"' >> /home/devuser/.bashrc && \
+    npm install -g n8n
+ENV PATH="/home/devuser/.npm-global/bin:${PATH}"
+
+# Set up Shellngn Pro for remote access
+RUN mkdir -p /home/devuser/shellngn-data
+
+# Add aliases for BlackArch tools and Shellngn Pro
+RUN echo 'alias shellngn-start="docker run -d --name shellngn -p 8080:8080 -v /home/devuser/shellngn-data:/data shellngn/pro"' >> /home/devuser/.bashrc && \
+    echo 'alias shellngn-stop="docker stop shellngn && docker rm shellngn"' >> /home/devuser/.bashrc && \
+    echo 'alias shellngn-logs="docker logs shellngn"' >> /home/devuser/.bashrc && \
+    echo 'alias nmap-scan="nmap -sS -sV -O"' >> /home/devuser/.bashrc && \
+    echo 'alias gobuster-dir="gobuster dir -w /usr/share/wordlists/dirb/common.txt"' >> /home/devuser/.bashrc && \
+    echo 'alias sqlmap-test="sqlmap --batch --random-agent"' >> /home/devuser/.bashrc
+
+# Install Neovim
+RUN curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux64.tar.gz && \
+    tar -xzf nvim-linux64.tar.gz && \
+    mkdir -p /home/devuser/.local/share && \
+    mv nvim-linux64 /home/devuser/.local/share/ && \
+    rm nvim-linux64.tar.gz
+ENV PATH="/home/devuser/.local/share/nvim-linux64/bin:${PATH}"
+
+# Copy Neovim configuration and menu script
+COPY --chown=devuser:devuser nvim /home/devuser/.config/nvim
+COPY --chown=devuser:devuser menu-blackarch.sh /home/devuser/menu.sh
+
+# Create BlackArch-specific directories
+RUN mkdir -p /home/devuser/pentest && \
+    mkdir -p /home/devuser/wordlists && \
+    mkdir -p /home/devuser/exploits && \
+    mkdir -p /home/devuser/reports
+
+# Download common wordlists
+RUN sudo mkdir -p /usr/share/wordlists && \
+    sudo git clone https://github.com/danielmiessler/SecLists.git /usr/share/wordlists/SecLists || true && \
+    sudo wget -O /usr/share/wordlists/rockyou.txt.gz https://github.com/brannondorsey/naive-hashcat/releases/download/data/rockyou.txt.gz || true
+
+# Pre-install Neovim plugins
+RUN nvim --headless -c 'autocmd User PackerComplete quitall' -c 'PackerSync' || true
+RUN nvim --headless -c 'Lazy sync' +qa
+
+# Set the entrypoint to the BlackArch menu script
+ENTRYPOINT ["/home/devuser/menu.sh"]
