@@ -1,0 +1,250 @@
+version: '3.8'
+
+services:
+  dronat-red:
+    build:
+      context: .
+      dockerfile: Dockerfile.red
+    image: dronat-red:latest
+    container_name: dronat-red-team
+    hostname: redteam-ops
+    
+    # Port mappings for red team operations
+    ports:
+      - "8888:8888"   # JupyterLab (ML/AI Offensive Security)
+      - "5678:5678"   # n8n Workflow Automation
+      - "8080:8080"   # Shellngn Pro C2 Interface
+      - "4444:4444"   # Metasploit handler port
+      - "4445:4445"   # Secondary handler port
+      - "5555:5555"   # Empire C2 RESTful API
+      - "1337:1337"   # Custom C2 listener
+      - "8000:8000"   # HTTP server for payload delivery
+      - "8443:8443"   # HTTPS server for payload delivery
+      - "53:53/udp"   # DNS exfiltration channel
+      - "80:80"       # HTTP C2 channel
+      - "443:443"     # HTTPS C2 channel
+      - "6006:6006"   # TensorBoard (ML Model Visualization)
+      - "7860:7860"   # Gradio (ML Model Interfaces)
+      - "8501:8501"   # Streamlit (Security Dashboards)
+      - "3000:3000"   # Additional web service
+    
+    # Volume mounts for persistent red team data
+    volumes:
+      - ./redteam-workspace:/home/devuser/redteam
+      - ./payloads:/home/devuser/payloads
+      - ./loot:/home/devuser/loot
+      - ./reports:/home/devuser/reports
+      - ./wordlists:/home/devuser/custom-wordlists
+      - ./exploits:/home/devuser/custom-exploits
+      - ./c2-profiles:/home/devuser/c2-profiles
+      - ./phishing-templates:/home/devuser/phishing
+      - shellngn-data:/home/devuser/shellngn-data
+      - empire-data:/home/devuser/Empire/data
+      
+    # Environment variables for red team operations
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+      - TERM=xterm-256color
+      - LANG=en_US.UTF-8
+      - LC_ALL=en_US.UTF-8
+      - PYTHONPATH=/home/devuser/anaconda3/lib/python3.11/site-packages
+      - PATH=/home/devuser/anaconda3/bin:/home/devuser/.local/share/nvim-linux64/bin:/home/devuser/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      - METASPLOIT_DATABASE_URL=postgresql://msf:${MSF_DB_PASSWORD:-changeme}@postgres-red:5432/msf_db
+      - EMPIRE_DB_URL=postgresql://empire:${EMPIRE_DB_PASSWORD:-changeme}@postgres-red:5432/empire_db
+    
+    # Network configuration for offensive operations
+    network_mode: host  # Required for network security tools and C2 operations
+    
+    # Security and capabilities for red team tools
+    privileged: true    # Required for network tools, packet capture, wireless
+    cap_add:
+      - NET_ADMIN      # Network administration
+      - NET_RAW        # Raw socket access for packet crafting
+      - SYS_ADMIN      # System administration for advanced persistence
+      - SYS_PTRACE     # Process tracing for debugging/analysis
+      - DAC_OVERRIDE   # Bypass file permission checks
+    
+    # Resource limits for intensive operations
+    deploy:
+      resources:
+        limits:
+          memory: 16G
+          cpus: '8.0'
+        reservations:
+          memory: 8G
+          cpus: '4.0'
+    
+    # Security settings
+    security_opt:
+      - seccomp:unconfined  # Required for some red team tools
+      - apparmor:unconfined # Required for advanced exploitation
+    
+    # Device access for hardware-based attacks
+    devices:
+      - /dev/net/tun:/dev/net/tun  # VPN/tunneling
+    
+    # Interactive mode
+    stdin_open: true
+    tty: true
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Depends on database services
+    depends_on:
+      - postgres-red
+      - redis-red
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+  # PostgreSQL database for red team operations
+  postgres-red:
+    image: postgres:15-alpine
+    container_name: postgres-red-db
+    environment:
+      POSTGRES_DB: redteam_db
+      POSTGRES_USER: redteam
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-RedTeam2024!}
+      POSTGRES_MULTIPLE_DATABASES: msf_db,empire_db,gophish_db
+    volumes:
+      - postgres-red-data:/var/lib/postgresql/data
+      - ./db-init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    profiles:
+      - database
+
+  # Redis for session management and C2 coordination
+  redis-red:
+    image: redis:7-alpine
+    container_name: redis-red-cache
+    command: redis-server --requirepass ${REDIS_PASSWORD:-RedisRed2024!}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-red-data:/data
+    restart: unless-stopped
+    profiles:
+      - cache
+
+  # Empire C2 Framework (separate container)
+  empire-c2:
+    image: empireproject/empire:latest
+    container_name: empire-c2-server
+    ports:
+      - "1337:1337"   # Empire listener
+      - "5000:5000"   # Empire REST API
+    volumes:
+      - empire-data:/opt/Empire/data
+    environment:
+      - EMPIRE_PASSWORD=${EMPIRE_PASSWORD:-EmpireRed2024!}
+    restart: unless-stopped
+    profiles:
+      - c2
+
+  # Covenant C2 Framework (alternative)
+  covenant-c2:
+    image: covenant/covenant:latest
+    container_name: covenant-c2-server
+    ports:
+      - "7443:7443"   # Covenant HTTPS interface
+    volumes:
+      - covenant-data:/app/Data
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=https://+:7443
+    restart: unless-stopped
+    profiles:
+      - c2
+
+  # Gophish for phishing campaigns
+  gophish:
+    image: gophish/gophish:latest
+    container_name: gophish-server
+    ports:
+      - "3333:3333"   # Gophish admin interface
+      - "8080:80"     # Phishing landing pages
+    volumes:
+      - gophish-data:/opt/gophish
+    environment:
+      - GOPHISH_INITIAL_ADMIN_PASSWORD=${GOPHISH_PASSWORD:-GophishRed2024!}
+    restart: unless-stopped
+    profiles:
+      - phishing
+
+  # Evilginx2 for advanced phishing
+  evilginx2:
+    image: evilginx/evilginx2:latest
+    container_name: evilginx2-server
+    ports:
+      - "53:53/udp"   # DNS
+      - "80:80"       # HTTP
+      - "443:443"     # HTTPS
+    volumes:
+      - evilginx2-data:/root/.evilginx
+    network_mode: host
+    privileged: true
+    restart: unless-stopped
+    profiles:
+      - phishing
+
+  # Monitoring and logging
+  elk-stack:
+    image: elastic/elasticsearch:8.11.0
+    container_name: elasticsearch-red
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elk-data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+volumes:
+  shellngn-data:
+    driver: local
+  postgres-red-data:
+    driver: local
+  redis-red-data:
+    driver: local
+  empire-data:
+    driver: local
+  covenant-data:
+    driver: local
+  gophish-data:
+    driver: local
+  evilginx2-data:
+    driver: local
+  elk-data:
+    driver: local
+
+networks:
+  default:
+    name: dronat-red-network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Usage examples:
+# Basic red team environment:
+#   docker-compose -f docker-compose-red.yml up dronat-red
+#
+# Full red team with C2 frameworks:
+#   docker-compose -f docker-compose-red.yml --profile c2 up
+#
+# Red team with phishing capabilities:
+#   docker-compose -f docker-compose-red.yml --profile phishing up
+#
+# Complete red team infrastructure:
+#   docker-compose -f docker-compose-red.yml --profile database --profile cache --profile c2 --profile phishing --profile monitoring up
