@@ -1,23 +1,80 @@
 #!/bin/bash
 
-# Interactive menu for the development environment
+# Interactive menu for the Dronat development environment
+# Enhanced version with improved UX and additional features
+
+# Color codes for enhanced UX
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# System information
+get_system_info() {
+    echo -e "${CYAN}📊 System Information:${NC}"
+    echo -e "  🐧 OS: $(lsb_release -d | cut -f2)"
+    echo -e "  🖥️  CPU: $(nproc) cores"
+    echo -e "  💾 Memory: $(free -h | awk '/^Mem:/ {print $2}') total"
+    echo -e "  🐍 Python: $(python3 --version 2>/dev/null || echo 'Not available')"
+    echo -e "  📦 Node.js: $(node --version 2>/dev/null || echo 'Not available')"
+    echo -e "  📝 Neovim: $(nvim --version | head -1 | cut -d' ' -f2 2>/dev/null || echo 'Not available')"
+    echo ""
+}
+
+# Check service status
+check_services() {
+    echo -e "${PURPLE}🔍 Service Status:${NC}"
+    
+    # Check for running services
+    services=("n8n:5678" "jupyter:8888" "tensorboard:6006" "gradio:7860" "streamlit:8501" "mlflow:5000")
+    for service in "${services[@]}"; do
+        name=$(echo $service | cut -d':' -f1)
+        port=$(echo $service | cut -d':' -f2)
+        if netstat -tuln 2>/dev/null | grep -q ":$port "; then
+            echo -e "  ✅ $name running on port $port"
+        else
+            echo -e "  ⭕ $name not running"
+        fi
+    done
+    
+    # Check Shellngn Pro Docker container
+    if docker ps 2>/dev/null | grep -q "shellngn"; then
+        echo -e "  ✅ Shellngn Pro container running"
+    else
+        echo -e "  ⭕ Shellngn Pro container not running"
+    fi
+    echo ""
+}
 
 # --- Functions ---
 show_menu() {
     clear
-    echo "***********************************"
-    echo "*   Welcome to nvimmer_dronatxxx  *"
-    echo "***********************************"
-    echo "1. Start Neovim"
-    echo "2. Start n8n Workflow Editor"
-    echo "3. Open a Bash Shell"
-    echo "4. Start a new Lean Project"
-    echo "5. Start OpenBB Terminal"
-    echo "6. Start ShellGPT Interactive Mode"
-    echo "7. Start Shellngn Pro (SSH/SFTP/VNC/RDP Web Client)"
-    echo "8. Start ML/AI Development Environment"
-    echo "9. Exit"
-    echo "***********************************"
+    echo -e "${BOLD}${BLUE}════════════════════════════════════════════════════════════${NC}"
+    echo -e "${BOLD}${CYAN}    🚀 Welcome to Dronat Development Environment    ${NC}"
+    echo -e "${BOLD}${BLUE}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    
+    get_system_info
+    check_services
+    
+    echo -e "${BOLD}${GREEN}📋 Available Options:${NC}"
+    echo -e "  ${YELLOW}1.${NC} 📝 Start Neovim (Enhanced IDE)"
+    echo -e "  ${YELLOW}2.${NC} 🔄 Start n8n Workflow Editor"
+    echo -e "  ${YELLOW}3.${NC} 💻 Open a Bash Shell"
+    echo -e "  ${YELLOW}4.${NC} 🎯 Start a new Lean Project"
+    echo -e "  ${YELLOW}5.${NC} 📈 Start OpenBB Terminal"
+    echo -e "  ${YELLOW}6.${NC} 🤖 Start ShellGPT Interactive Mode"
+    echo -e "  ${YELLOW}7.${NC} 🌐 Start Shellngn Pro (SSH/SFTP/VNC/RDP)"
+    echo -e "  ${YELLOW}8.${NC} 🧠 ML/AI Development Environment"
+    echo -e "  ${YELLOW}9.${NC} 🔧 System Tools & Utilities"
+    echo -e "  ${YELLOW}10.${NC} 📚 Help & Documentation"
+    echo -e "  ${YELLOW}11.${NC} 🚪 Exit"
+    echo -e "${BOLD}${BLUE}════════════════════════════════════════════════════════════${NC}"
+    echo ""
 }
 
 start_neovim() {
@@ -347,10 +404,167 @@ EOF
     start_ml_ai_env
 }
 
+# System tools and utilities
+start_system_tools() {
+    clear
+    echo -e "${BOLD}${PURPLE}🔧 System Tools & Utilities${NC}"
+    echo -e "${BLUE}════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "${GREEN}Available Tools:${NC}"
+    echo -e "  ${YELLOW}1.${NC} 📊 System Monitor (htop)"
+    echo -e "  ${YELLOW}2.${NC} 📁 File Manager (ranger)"
+    echo -e "  ${YELLOW}3.${NC} 🌐 Network Tools"
+    echo -e "  ${YELLOW}4.${NC} 📋 Git Operations"
+    echo -e "  ${YELLOW}5.${NC} 🐳 Docker Management"
+    echo -e "  ${YELLOW}6.${NC} 📦 Package Management"
+    echo -e "  ${YELLOW}7.${NC} 📋 Environment Information"
+    echo -e "  ${YELLOW}8.${NC} 🔙 Return to main menu"
+    echo ""
+    read -p "Enter your choice [1-8]: " tools_choice
+    
+    case $tools_choice in
+        1)
+            echo "Starting htop..."
+            htop || (echo "htop not available, installing..." && apt-get update && apt-get install -y htop && htop)
+            ;;
+        2)
+            echo "Starting file manager..."
+            ranger || (echo "ranger not available, using basic file browser..." && ls -la && bash)
+            ;;
+        3)
+            echo -e "${CYAN}🌐 Network Information:${NC}"
+            echo "IP Addresses:"
+            ip addr show | grep "inet " | awk '{print "  " $2}'
+            echo ""
+            echo "Active connections:"
+            netstat -tuln 2>/dev/null | head -10 || ss -tuln | head -10
+            echo ""
+            read -p "Press Enter to continue..."
+            ;;
+        4)
+            echo -e "${CYAN}📋 Git Status:${NC}"
+            if git status 2>/dev/null; then
+                echo ""
+                echo "Recent commits:"
+                git log --oneline -5 2>/dev/null || echo "No git repository found"
+            else
+                echo "Not in a git repository"
+            fi
+            echo ""
+            read -p "Press Enter to continue..."
+            ;;
+        5)
+            echo -e "${CYAN}🐳 Docker Status:${NC}"
+            if command -v docker &> /dev/null; then
+                echo "Running containers:"
+                docker ps
+                echo ""
+                echo "Available images:"
+                docker images | head -10
+            else
+                echo "Docker not available"
+            fi
+            echo ""
+            read -p "Press Enter to continue..."
+            ;;
+        6)
+            echo -e "${CYAN}📦 Package Information:${NC}"
+            echo "Python packages (showing first 20):"
+            pip list | head -20
+            echo ""
+            echo "Node.js packages:"
+            npm list -g --depth=0 2>/dev/null | head -10 || echo "No global npm packages found"
+            echo ""
+            read -p "Press Enter to continue..."
+            ;;
+        7)
+            echo -e "${CYAN}📋 Environment Information:${NC}"
+            echo "PATH directories:"
+            echo $PATH | tr ':' '\n' | head -10
+            echo ""
+            echo "Environment variables (showing key ones):"
+            env | grep -E "(HOME|USER|SHELL|TERM|LANG)" | sort
+            echo ""
+            read -p "Press Enter to continue..."
+            ;;
+        8)
+            return
+            ;;
+        *)
+            echo "Invalid option. Please try again."
+            sleep 2
+            ;;
+    esac
+    
+    if [ "$tools_choice" != "8" ]; then
+        start_system_tools
+    fi
+}
+
+# Help and documentation
+show_help() {
+    clear
+    echo -e "${BOLD}${CYAN}📚 Help & Documentation${NC}"
+    echo -e "${BLUE}══════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "${GREEN}🚀 Dronat Development Environment${NC}"
+    echo ""
+    echo -e "${YELLOW}Quick Start Guide:${NC}"
+    echo -e "  • Option 1: Launch Neovim with enhanced IDE features"
+    echo -e "  • Option 8: Access comprehensive ML/AI development tools"
+    echo -e "  • Option 9: System utilities and monitoring tools"
+    echo ""
+    echo -e "${YELLOW}Key Features:${NC}"
+    echo -e "  📝 ${BOLD}Enhanced Neovim IDE:${NC}"
+    echo -e "      • LSP support for Python, JavaScript, Lua, and more"
+    echo -e "      • AI-powered coding with GitHub Copilot integration"
+    echo -e "      • Advanced debugging with DAP"
+    echo -e "      • Git integration and project management"
+    echo ""
+    echo -e "  🧠 ${BOLD}ML/AI Development:${NC}"
+    echo -e "      • TensorFlow, PyTorch, scikit-learn"
+    echo -e "      • JupyterLab, Gradio, Streamlit"
+    echo -e "      • MLflow experiment tracking"
+    echo -e "      • Complete data science stack"
+    echo ""
+    echo -e "  🔄 ${BOLD}Workflow Automation:${NC}"
+    echo -e "      • n8n for visual workflow creation"
+    echo -e "      • OpenBB for financial analysis"
+    echo -e "      • ShellGPT for AI-assisted commands"
+    echo ""
+    echo -e "  🌐 ${BOLD}Remote Access:${NC}"
+    echo -e "      • Shellngn Pro for SSH/SFTP/VNC/RDP"
+    echo -e "      • Web-based interfaces for all tools"
+    echo ""
+    echo -e "${YELLOW}Port Mappings:${NC}"
+    echo -e "  • 5678: n8n workflow editor"
+    echo -e "  • 8080: Shellngn Pro web client"
+    echo -e "  • 8888: JupyterLab/Jupyter Notebook"
+    echo -e "  • 6006: TensorBoard"
+    echo -e "  • 7860: Gradio ML demos"
+    echo -e "  • 8501: Streamlit ML apps"
+    echo -e "  • 5000: MLflow tracking UI"
+    echo ""
+    echo -e "${YELLOW}Tips:${NC}"
+    echo -e "  • Use Ctrl+C to exit most tools and return to menu"
+    echo -e "  • Check service status in main menu to see what's running"
+    echo -e "  • Access web interfaces from your host machine browser"
+    echo -e "  • Use system tools (Option 9) for monitoring and management"
+    echo ""
+    echo -e "${YELLOW}Keyboard Shortcuts in Neovim:${NC}"
+    echo -e "  • <leader>e: Toggle file explorer"
+    echo -e "  • <leader>ff: Find files"
+    echo -e "  • <leader>fg: Live grep search"
+    echo -e "  • <leader>ca: Code actions"
+    echo -e "  • <C-\\>: Toggle terminal"
+    echo ""
+    read -p "Press Enter to return to main menu..."
+}
+
 # --- Main Loop ---
 while true; do
     show_menu
-    read -p "Enter your choice [1-9]: " choice
+    read -p "Enter your choice [1-11]: " choice
 
     case $choice in
         1)
@@ -378,10 +592,18 @@ while true; do
             start_ml_ai_env
             ;;
         9)
+            start_system_tools
+            ;;
+        10)
+            show_help
+            ;;
+        11)
+            echo -e "${GREEN}👋 Thank you for using Dronat!${NC}"
+            echo -e "${CYAN}Happy coding! 🚀${NC}"
             exit 0
             ;;
         *)
-            echo "Invalid option. Please try again."
+            echo -e "${RED}Invalid option. Please try again.${NC}"
             sleep 2
             ;;
     esac

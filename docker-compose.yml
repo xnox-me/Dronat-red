@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  dronat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dronat:latest
+    container_name: dronat-dev-env
+    stdin_open: true
+    tty: true
+    ports:
+      # Core services
+      - "5678:5678"   # n8n workflow editor
+      - "8080:8080"   # Shellngn Pro SSH/SFTP/VNC/RDP client
+      - "8888:8888"   # JupyterLab/Jupyter Notebook
+      - "6006:6006"   # TensorBoard
+      - "7860:7860"   # Gradio ML demos
+      - "8501:8501"   # Streamlit ML apps
+      - "5000:5000"   # MLflow tracking UI
+    volumes:
+      # Persistent workspace
+      - dronat-workspace:/home/devuser/workspace
+      # Shellngn Pro data persistence
+      - dronat-shellngn-data:/home/devuser/shellngn-data
+      # Docker socket for Shellngn Pro (optional, for advanced users)
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Optional: Mount local projects
+      # - ./projects:/home/devuser/projects
+    environment:
+      # Set timezone
+      - TZ=UTC
+      # Jupyter configuration
+      - JUPYTER_ENABLE_LAB=yes
+      # MLflow configuration
+      - MLFLOW_TRACKING_URI=http://localhost:5000
+    restart: unless-stopped
+    # Health check to ensure services are running
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/lab/api/status", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - dronat-network
+
+  # Optional: Standalone MLflow tracking server
+  mlflow-server:
+    image: python:3.11-slim
+    container_name: dronat-mlflow
+    ports:
+      - "5001:5000"
+    volumes:
+      - dronat-mlflow-data:/mlflow
+    environment:
+      - MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow/mlflow.db
+      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
+    command: >
+      sh -c "
+        pip install mlflow psycopg2-binary &&
+        mlflow server 
+        --backend-store-uri sqlite:///mlflow/mlflow.db 
+        --default-artifact-root /mlflow/artifacts 
+        --host 0.0.0.0 
+        --port 5000
+      "
+    restart: unless-stopped
+    networks:
+      - dronat-network
+    profiles:
+      - mlflow-standalone
+
+volumes:
+  dronat-workspace:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./workspace
+  dronat-shellngn-data:
+    driver: local
+  dronat-mlflow-data:
+    driver: local
+
+networks:
+  dronat-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,5 +1,5 @@
 # Dockerfile for a complete development environment
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Set non-interactive frontend for package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -16,11 +16,24 @@ RUN apt-get update && apt-get install -y \
     fd-find \
     python3-pip \
     python3-venv \
+    python3-dev \
+    python3-full \
+    pkg-config \
+    libhdf5-dev \
+    libssl-dev \
+    libffi-dev \
+    libjpeg-dev \
+    libpng-dev \
+    libfreetype6-dev \
+    libxml2-dev \
+    libxslt1-dev \
+    libopenblas-dev \
+    liblapack-dev \
     tmux \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 18 LTS (required for n8n)
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+# Install Node.js 22 LTS (required for n8n)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs
 
 # Install GitHub CLI
@@ -32,33 +45,26 @@ RUN echo "devuser:devuser" | chpasswd
 USER devuser
 WORKDIR /home/devuser
 
-# Install Anaconda
-RUN curl -O https://repo.anaconda.com/archive/Anaconda3-2024.02-1-Linux-x86_64.sh &&     bash Anaconda3-2024.02-1-Linux-x86_64.sh -b -p /home/devuser/anaconda3 &&     rm Anaconda3-2024.02-1-Linux-x86_64.sh
-ENV PATH="/home/devuser/anaconda3/bin:${PATH}"
+# Install Anaconda 2024.10
+RUN curl -O https://repo.anaconda.com/archive/Anaconda3-2024.10-1-Linux-x86_64.sh && \
+    bash Anaconda3-2024.10-1-Linux-x86_64.sh -b -p /home/devuser/anaconda3 && \
+    rm Anaconda3-2024.10-1-Linux-x86_64.sh
 
-# Install Meson, OpenBB, ShellGPT, and comprehensive ML/AI tools
-RUN pip install meson openbb shell-gpt \
-    # Core ML/AI frameworks
-    tensorflow torch torchvision torchaudio \
-    scikit-learn xgboost lightgbm catboost \
-    # Deep learning and neural networks
-    keras transformers accelerate diffusers \
-    # Data science and analysis
-    pandas numpy scipy matplotlib seaborn plotly \
-    # Jupyter and notebook tools
-    jupyterlab notebook jupyterlab-git \
-    # Computer vision
-    opencv-python pillow albumentations \
-    # Natural language processing
-    nltk spacy textblob gensim \
-    # MLOps and experiment tracking
-    mlflow wandb tensorboard \
-    # AutoML and hyperparameter tuning
-    optuna hyperopt ray[tune] \
-    # Model deployment and serving
-    fastapi uvicorn gradio streamlit \
-    # Additional utilities
-    ipython ipywidgets tqdm joblib
+# Set up Anaconda environment
+ENV PATH="/home/devuser/anaconda3/bin:${PATH}"
+ENV CONDA_PREFIX="/home/devuser/anaconda3"
+
+# Initialize conda and update base environment
+RUN /home/devuser/anaconda3/bin/conda init bash && \
+    /home/devuser/anaconda3/bin/conda update -n base -c defaults conda -y
+
+# Copy installation scripts
+COPY requirements.txt /tmp/requirements.txt
+COPY install_packages.py /tmp/install_packages.py
+
+# Install Python packages with robust error handling using the dedicated installer
+RUN /home/devuser/anaconda3/bin/python /tmp/install_packages.py && \
+    rm /tmp/requirements.txt /tmp/install_packages.py
 
 # Install n8n for the user (not globally)
 RUN npm config set prefix '/home/devuser/.npm-global' \
